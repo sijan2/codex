@@ -15,7 +15,10 @@ use codex_api::ResponseEvent;
 use codex_app_server_protocol::AuthMode;
 use codex_login::AuthManager;
 use codex_login::CodexAuth;
+use codex_login::auth::AgentIdentityAuthPolicy;
+use codex_model_provider::AgentTaskExternalRef;
 use codex_model_provider::BearerAuthProvider;
+use codex_model_provider::ProviderAuthScope;
 use codex_model_provider_info::CHATGPT_CODEX_BASE_URL;
 use codex_model_provider_info::ModelProviderInfo;
 use codex_model_provider_info::WireApi;
@@ -61,8 +64,15 @@ use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::util::SubscriberInitExt;
 
 fn test_model_client(session_source: SessionSource) -> ModelClient {
+    test_model_client_with_thread_id(ThreadId::new(), session_source)
+}
+
+fn test_model_client_with_thread_id(
+    conversation_id: ThreadId,
+    session_source: SessionSource,
+) -> ModelClient {
     let provider = create_oss_provider_with_base_url("https://example.com/v1", WireApi::Responses);
-    let thread_id = ThreadId::new();
+    let thread_id = conversation_id;
     ModelClient::new(
         /*auth_manager*/ None,
         thread_id.into(),
@@ -76,6 +86,23 @@ fn test_model_client(session_source: SessionSource) -> ModelClient {
         /*beta_features_header*/ None,
         /*attestation_provider*/ None,
     )
+}
+
+#[test]
+fn provider_auth_scope_uses_thread_id_as_session_ref() {
+    let conversation_id =
+        ThreadId::from_string("018f4f4c-43f5-7b28-8e24-000000000001").expect("valid thread id");
+    let client = test_model_client_with_thread_id(conversation_id, SessionSource::Cli);
+
+    assert_eq!(
+        client.provider_auth_scope(),
+        ProviderAuthScope::Thread {
+            external_ref: AgentTaskExternalRef::new(conversation_id.to_string()),
+            agent_identity_policy: AgentIdentityAuthPolicy::JwtOnly,
+            session_source: SessionSource::Cli,
+            chatgpt_base_url: None,
+        }
+    );
 }
 
 fn test_model_info() -> ModelInfo {

@@ -867,13 +867,19 @@ impl Session {
                 live_thread: live_thread_init.as_ref().cloned(),
                 thread_store: Arc::clone(&thread_store),
                 attestation_provider: attestation_provider.clone(),
-                model_client: ModelClient::new(
+                model_client: ModelClient::new_with_agent_identity_policy(
                     Some(Arc::clone(&auth_manager)),
                     session_id,
                     thread_id,
                     installation_id.clone(),
                     session_configuration.provider.clone(),
                     session_configuration.session_source.clone(),
+                    if config.features.enabled(Feature::UseAgentIdentity) {
+                        codex_login::auth::AgentIdentityAuthPolicy::JwtOrChatgpt
+                    } else {
+                        codex_login::auth::AgentIdentityAuthPolicy::JwtOnly
+                    },
+                    Some(config.chatgpt_base_url.clone()),
                     config.model_verbosity,
                     config.features.enabled(Feature::EnableRequestCompression),
                     config.features.enabled(Feature::RuntimeMetrics),
@@ -1047,8 +1053,6 @@ impl Session {
                     anyhow::bail!("required MCP servers failed to initialize: {details}");
                 }
             }
-            sess.schedule_startup_prewarm(session_configuration.base_instructions.clone())
-                .await;
             let session_start_source = match &initial_history {
                 InitialHistory::Resumed(_) => codex_hooks::SessionStartSource::Resume,
                 InitialHistory::New | InitialHistory::Forked(_) => {
@@ -1059,6 +1063,8 @@ impl Session {
 
             // record_initial_history can emit events. We record only after the SessionConfiguredEvent is emitted.
             sess.record_initial_history(initial_history).await;
+            sess.schedule_startup_prewarm(session_configuration.base_instructions.clone())
+                .await;
             {
                 let mut state = sess.state.lock().await;
                 state.set_pending_session_start_source(Some(session_start_source));

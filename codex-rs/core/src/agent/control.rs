@@ -722,7 +722,9 @@ impl AgentControl {
             } else {
                 state.send_op(agent_id, Op::Shutdown {}).await
             };
-            thread.wait_until_terminated().await;
+            if result.is_ok() || matches!(result, Err(CodexErr::InternalAgentDied)) {
+                thread.wait_until_terminated().await;
+            }
             result
         } else {
             state.send_op(agent_id, Op::Shutdown {}).await
