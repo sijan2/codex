@@ -2247,6 +2247,7 @@ dependencies = [
  "codex-mcp-server",
  "codex-memories-write",
  "codex-models-manager",
+ "codex-plugin",
  "codex-protocol",
  "codex-responses-api-proxy",
  "codex-rmcp-client",
