@@ -11,6 +11,7 @@ use codex_protocol::protocol::Event;
 use codex_protocol::protocol::EventMsg;
 use codex_protocol::protocol::ExitedReviewModeEvent;
 use codex_protocol::protocol::ItemCompletedEvent;
+use codex_protocol::protocol::McpStartupStatus;
 use codex_protocol::protocol::ReviewOutputEvent;
 use codex_protocol::protocol::SubAgentSource;
 use codex_utils_template::Template;
@@ -143,6 +144,9 @@ async fn process_review_events(
     receiver: async_channel::Receiver<Event>,
 ) -> Option<ReviewOutputEvent> {
     let mut prev_agent_message: Option<Event> = None;
+    let mut review_output: Option<ReviewOutputEvent> = None;
+    let mut review_turn_complete = false;
+    let mut mcp_startup_pending = false;
     while let Ok(event) = receiver.recv().await {
         match event.clone().msg {
             EventMsg::AgentMessage(_) => {
@@ -162,13 +166,37 @@ async fn process_review_events(
                 ..
             })
             | EventMsg::AgentMessageContentDelta(AgentMessageContentDeltaEvent { .. }) => {}
+            EventMsg::McpStartupUpdate(update) => {
+                if matches!(&update.status, McpStartupStatus::Starting) {
+                    mcp_startup_pending = true;
+                }
+                session
+                    .clone_session()
+                    .send_event(ctx.as_ref(), EventMsg::McpStartupUpdate(update))
+                    .await;
+            }
+            EventMsg::McpStartupComplete(complete) => {
+                mcp_startup_pending = false;
+                session
+                    .clone_session()
+                    .send_event(ctx.as_ref(), EventMsg::McpStartupComplete(complete))
+                    .await;
+                if review_turn_complete {
+                    return review_output;
+                }
+            }
             EventMsg::TurnComplete(task_complete) => {
                 // Parse review output from the last agent message (if present).
                 let out = task_complete
                     .last_agent_message
                     .as_deref()
                     .map(parse_review_output_event);
-                return out;
+                review_turn_complete = true;
+                if mcp_startup_pending {
+                    review_output = out;
+                } else {
+                    return out;
+                }
             }
             EventMsg::TurnAborted(_) => {
                 // Cancellation or abort: consumer will finalize with None.
@@ -182,8 +210,9 @@ async fn process_review_events(
             }
         }
     }
-    // Channel closed without TurnComplete: treat as interrupted.
-    None
+    // Channel closed before TurnComplete is interrupted; after TurnComplete,
+    // preserve the review output even if MCP startup completion never arrived.
+    review_turn_complete.then_some(review_output).flatten()
 }
 
 /// Parse a ReviewOutputEvent from a text blob returned by the reviewer model.
