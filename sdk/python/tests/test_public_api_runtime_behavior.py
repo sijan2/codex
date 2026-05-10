@@ -30,7 +30,6 @@ from openai_codex.api import (
     Thread,
     TurnHandle,
 )
-from openai_codex.types import AskForApproval
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -249,21 +248,6 @@ def test_async_codex_initializes_only_once_under_concurrency() -> None:
     asyncio.run(scenario())
 
 
-def test_ask_for_approval_exposes_simple_policy_constants() -> None:
-    """AskForApproval should expose enum-like aliases for simple policies."""
-    assert {
-        "untrusted": AskForApproval.untrusted.model_dump(mode="json"),
-        "on_failure": AskForApproval.on_failure.model_dump(mode="json"),
-        "on_request": AskForApproval.on_request.model_dump(mode="json"),
-        "never": AskForApproval.never.model_dump(mode="json"),
-    } == {
-        "untrusted": "untrusted",
-        "on_failure": "on-failure",
-        "on_request": "on-request",
-        "never": "never",
-    }
-
-
 def test_sync_api_maps_approval_modes_for_started_work() -> None:
     """Sync start methods should serialize only supported approval modes."""
     captured: list[Any] = []
@@ -307,23 +291,23 @@ def test_sync_api_maps_approval_modes_for_started_work() -> None:
     codex.thread_resume("thread-1")
     codex.thread_fork("thread-1")
     Thread(client, "thread-1").turn(TextInput("hello"))
-    codex.thread_start(approval_mode=ApprovalMode.auto_review)
-    codex.thread_resume("thread-1", approval_mode=ApprovalMode.auto_review)
-    codex.thread_fork("thread-1", approval_mode=ApprovalMode.auto_review)
+    codex.thread_start(approval_mode=ApprovalMode.deny_all)
+    codex.thread_resume("thread-1", approval_mode=ApprovalMode.deny_all)
+    codex.thread_fork("thread-1", approval_mode=ApprovalMode.deny_all)
     Thread(client, "thread-1").turn(
         TextInput("hello"),
-        approval_mode=ApprovalMode.auto_review,
+        approval_mode=ApprovalMode.deny_all,
     )
 
     assert _approval_settings(captured) == [
-        {"approvalPolicy": "never"},
-        {"approvalPolicy": "never"},
-        {"approvalPolicy": "never"},
-        {"approvalPolicy": "never"},
         {"approvalPolicy": "on-request", "approvalsReviewer": "auto_review"},
         {"approvalPolicy": "on-request", "approvalsReviewer": "auto_review"},
         {"approvalPolicy": "on-request", "approvalsReviewer": "auto_review"},
         {"approvalPolicy": "on-request", "approvalsReviewer": "auto_review"},
+        {"approvalPolicy": "never"},
+        {"approvalPolicy": "never"},
+        {"approvalPolicy": "never"},
+        {"approvalPolicy": "never"},
     ]
 
 
@@ -373,7 +357,6 @@ def test_sync_api_rejects_unknown_approval_mode_before_rpc() -> None:
 
 def test_async_api_maps_approval_modes_for_started_work() -> None:
     """Async start methods should serialize only supported approval modes."""
-
     async def scenario() -> None:
         """Exercise the async wrappers without spawning a real app server."""
         captured: list[Any] = []
@@ -417,26 +400,26 @@ def test_async_api_maps_approval_modes_for_started_work() -> None:
         await codex.thread_resume("thread-1")
         await codex.thread_fork("thread-1")
         await AsyncThread(codex, "thread-1").turn(TextInput("hello"))
-        await codex.thread_start(approval_mode=ApprovalMode.auto_review)
+        await codex.thread_start(approval_mode=ApprovalMode.deny_all)
         await codex.thread_resume(
             "thread-1",
-            approval_mode=ApprovalMode.auto_review,
+            approval_mode=ApprovalMode.deny_all,
         )
-        await codex.thread_fork("thread-1", approval_mode=ApprovalMode.auto_review)
+        await codex.thread_fork("thread-1", approval_mode=ApprovalMode.deny_all)
         await AsyncThread(codex, "thread-1").turn(
             TextInput("hello"),
-            approval_mode=ApprovalMode.auto_review,
+            approval_mode=ApprovalMode.deny_all,
         )
 
         assert _approval_settings(captured) == [
-            {"approvalPolicy": "never"},
-            {"approvalPolicy": "never"},
-            {"approvalPolicy": "never"},
-            {"approvalPolicy": "never"},
             {"approvalPolicy": "on-request", "approvalsReviewer": "auto_review"},
             {"approvalPolicy": "on-request", "approvalsReviewer": "auto_review"},
             {"approvalPolicy": "on-request", "approvalsReviewer": "auto_review"},
             {"approvalPolicy": "on-request", "approvalsReviewer": "auto_review"},
+            {"approvalPolicy": "never"},
+            {"approvalPolicy": "never"},
+            {"approvalPolicy": "never"},
+            {"approvalPolicy": "never"},
         ]
 
     asyncio.run(scenario())
@@ -444,7 +427,6 @@ def test_async_api_maps_approval_modes_for_started_work() -> None:
 
 def test_async_api_rejects_unknown_approval_mode_before_rpc() -> None:
     """Unknown async approval modes should fail before awaiting client calls."""
-
     async def scenario() -> None:
         """Exercise async validation without starting a real app-server process."""
         calls: list[str] = []
@@ -524,7 +506,6 @@ def test_turn_streams_can_consume_multiple_turns_on_one_client() -> None:
 
 def test_async_turn_streams_can_consume_multiple_turns_on_one_client() -> None:
     """Two async TurnHandle streams should advance independently on one client."""
-
     async def scenario() -> None:
         """Interleave two async streams backed by separate per-turn queues."""
         codex = AsyncCodex()
@@ -607,10 +588,7 @@ def test_thread_run_accepts_string_input_and_returns_run_result() -> None:
 
     client.turn_start = fake_turn_start  # type: ignore[method-assign]
 
-    result = Thread(client, "thread-1").run(
-        "hello",
-        approval_mode=ApprovalMode.auto_review,
-    )
+    result = Thread(client, "thread-1").run("hello")
 
     assert (
         seen["thread_id"],
@@ -797,7 +775,6 @@ def test_stream_text_registers_and_consumes_turn_notifications() -> None:
 
 def test_async_thread_run_accepts_string_input_and_returns_run_result() -> None:
     """Async Thread.run should normalize string input and collect routed results."""
-
     async def scenario() -> None:
         """Feed item, usage, and completion events through the async turn stream."""
         codex = AsyncCodex()
@@ -832,10 +809,7 @@ def test_async_thread_run_accepts_string_input_and_returns_run_result() -> None:
         codex._client.turn_start = fake_turn_start  # type: ignore[method-assign]
         codex._client.next_turn_notification = fake_next_notification  # type: ignore[method-assign]
 
-        result = await AsyncThread(codex, "thread-1").run(
-            "hello",
-            approval_mode=ApprovalMode.auto_review,
-        )
+        result = await AsyncThread(codex, "thread-1").run("hello")
 
         assert (
             seen["thread_id"],
@@ -860,7 +834,6 @@ def test_async_thread_run_uses_last_completed_assistant_message_as_final_respons
     None
 ):
     """Async run should use the last final assistant message as the response text."""
-
     async def scenario() -> None:
         """Feed two completed agent messages through the async per-turn stream."""
         codex = AsyncCodex()
@@ -908,7 +881,6 @@ def test_async_thread_run_uses_last_completed_assistant_message_as_final_respons
 
 def test_async_thread_run_returns_none_when_only_commentary_messages_complete() -> None:
     """Async Thread.run should ignore commentary-only messages for final text."""
-
     async def scenario() -> None:
         """Feed a commentary item and completion through the async turn stream."""
         codex = AsyncCodex()
