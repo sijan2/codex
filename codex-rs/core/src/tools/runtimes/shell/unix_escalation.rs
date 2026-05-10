@@ -467,6 +467,7 @@ impl CoreShellActionProvider {
                         &turn,
                         call_id,
                         approval_id,
+                        self.tool_name,
                         command,
                         workdir.clone(),
                         /*reason*/ None,

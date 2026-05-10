@@ -25,6 +25,7 @@ use codex_protocol::models::PermissionProfile;
 use codex_protocol::protocol::AskForApproval;
 use codex_protocol::protocol::Event;
 use codex_protocol::protocol::EventMsg;
+use codex_protocol::protocol::GuardianCommandSource;
 use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::WarningEvent;
 use indexmap::IndexMap;
@@ -519,11 +520,19 @@ impl NetworkApprovalService {
             .await
         } else {
             let available_decisions = None;
+            let source = match owner_call
+                .as_ref()
+                .map(|call| call.trigger.tool_name.as_str())
+            {
+                Some("unified_exec") => GuardianCommandSource::UnifiedExec,
+                _ => GuardianCommandSource::Shell,
+            };
             session
                 .request_command_approval(
                     turn_context.as_ref(),
                     guardian_approval_id,
                     /*approval_id*/ None,
+                    source,
                     prompt_command,
                     turn_context.cwd.clone(),
                     Some(prompt_reason),

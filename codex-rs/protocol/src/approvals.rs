@@ -131,6 +131,10 @@ pub enum GuardianCommandSource {
     UnifiedExec,
 }
 
+fn default_guardian_command_source() -> GuardianCommandSource {
+    GuardianCommandSource::Shell
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[ts(tag = "type", rename_all = "snake_case")]
@@ -231,6 +235,11 @@ pub struct ExecApprovalRequestEvent {
     pub turn_id: String,
     #[ts(type = "number")]
     pub started_at_ms: i64,
+    /// Originating command tool for this approval request.
+    ///
+    /// Uses `#[serde(default)]` for backwards compatibility with older senders.
+    #[serde(default = "default_guardian_command_source")]
+    pub source: GuardianCommandSource,
     /// The command to be executed.
     pub command: Vec<String>,
     /// The command's working directory.

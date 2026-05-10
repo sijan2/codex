@@ -439,6 +439,7 @@ async fn handle_exec_approval(
     let ExecApprovalRequestEvent {
         call_id,
         approval_id,
+        source,
         command,
         cwd,
         reason,
@@ -484,6 +485,7 @@ async fn handle_exec_approval(
                 parent_ctx,
                 call_id,
                 approval_id,
+                source,
                 command,
                 cwd,
                 reason,

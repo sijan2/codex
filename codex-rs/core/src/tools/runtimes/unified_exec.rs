@@ -43,6 +43,7 @@ use codex_network_proxy::NetworkProxy;
 use codex_protocol::error::CodexErr;
 use codex_protocol::error::SandboxErr;
 use codex_protocol::models::AdditionalPermissionProfile;
+use codex_protocol::protocol::GuardianCommandSource;
 use codex_protocol::protocol::ReviewDecision;
 use codex_sandboxing::SandboxablePreference;
 use codex_shell_command::powershell::prefix_powershell_script_with_utf8;
@@ -179,6 +180,7 @@ impl Approvable<UnifiedExecRequest> for UnifiedExecRuntime<'_> {
                         turn,
                         call_id,
                         /*approval_id*/ None,
+                        GuardianCommandSource::UnifiedExec,
                         command,
                         cwd.clone(),
                         reason,

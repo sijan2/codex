@@ -39,6 +39,7 @@ use crate::tools::sandboxing::with_cached_approval;
 use codex_network_proxy::NetworkProxy;
 use codex_protocol::exec_output::ExecToolCallOutput;
 use codex_protocol::models::AdditionalPermissionProfile;
+use codex_protocol::protocol::GuardianCommandSource;
 use codex_protocol::protocol::ReviewDecision;
 use codex_sandboxing::SandboxablePreference;
 use codex_shell_command::powershell::prefix_powershell_script_with_utf8;
@@ -183,6 +184,7 @@ impl Approvable<ShellRequest> for ShellRuntime {
                         turn,
                         call_id,
                         /*approval_id*/ None,
+                        GuardianCommandSource::Shell,
                         command,
                         cwd,
                         reason,

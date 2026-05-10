@@ -223,6 +223,7 @@ async fn run_codex_tool_session_inner(
                         let ExecApprovalRequestEvent {
                             turn_id: _,
                             started_at_ms: _,
+                            source: _,
                             command,
                             cwd,
                             call_id,

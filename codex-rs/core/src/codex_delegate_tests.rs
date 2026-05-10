@@ -315,6 +315,7 @@ async fn handle_exec_approval_uses_call_id_for_guardian_review_and_approval_id_f
                     approval_id: Some("callback-approval-1".to_string()),
                     turn_id: "child-turn-1".to_string(),
                     started_at_ms: 0,
+                    source: GuardianCommandSource::Shell,
                     command: vec!["rm".to_string(), "-rf".to_string(), "tmp".to_string()],
                     cwd: test_path_buf("/tmp").abs(),
                     reason: Some("unsafe subcommand".to_string()),
