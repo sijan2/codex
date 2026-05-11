@@ -9,3 +9,11 @@ rustflags = ["-C", "link-arg=/STACK:8388608", "-C", "link-arg=/arm64hazardfree"]
 
 [target.'cfg(all(windows, target_env = "gnu"))']
 rustflags = ["-C", "link-arg=-Wl,--stack,8388608"]
+
+# aarch64 Android (bionic) cross build. NDK r27c, min API 35.
+# These are sane defaults for a local NDK install; the build is normally driven
+# by `cargo ndk`, which overrides the linker/CC/AR via env to match the NDK it
+# discovers (ANDROID_NDK_HOME), so a version bump does not require editing this.
+[target.aarch64-linux-android]
+linker = "/opt/homebrew/share/android-commandlinetools/ndk/27.3.13750724/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android35-clang"
+ar = "/opt/homebrew/share/android-commandlinetools/ndk/27.3.13750724/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"

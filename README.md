@@ -1,4 +1,5 @@
 <p align="center"><strong>Codex CLI</strong> is a coding agent from OpenAI that runs locally on your computer.
+<p align="center"><strong>Android fork:</strong> Codex CLI for aarch64 Bionic / Android userland.</p>
 <p align="center">
   <img src="https://github.com/openai/codex/blob/main/.github/codex-cli-splash.png" alt="Codex CLI splash" width="80%" />
 </p>

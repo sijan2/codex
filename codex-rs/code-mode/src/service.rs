@@ -23,6 +23,7 @@ use crate::runtime::CodeModeNestedToolCall;
 use crate::runtime::DEFAULT_EXEC_YIELD_TIME_MS;
 use crate::runtime::ExecuteRequest;
 use crate::runtime::ExecuteToPendingOutcome;
+use crate::runtime::IsolateTerminateHandle;
 use crate::runtime::PendingRuntimeMode;
 use crate::runtime::RuntimeCommand;
 use crate::runtime::RuntimeControlCommand;
@@ -480,7 +481,7 @@ struct CellControlContext {
     runtime_tx: std::sync::mpsc::Sender<RuntimeCommand>,
     runtime_control_tx: std::sync::mpsc::Sender<RuntimeControlCommand>,
     pending_mode: PendingRuntimeMode,
-    runtime_terminate_handle: v8::IsolateHandle,
+    runtime_terminate_handle: IsolateTerminateHandle,
     cancellation_token: CancellationToken,
 }
 
