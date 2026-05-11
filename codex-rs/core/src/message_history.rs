@@ -148,6 +148,16 @@ pub async fn append_entry(text: &str, conversation_id: &ThreadId, config: &Confi
                 Err(std::fs::TryLockError::WouldBlock) => {
                     std::thread::sleep(RETRY_SLEEP);
                 }
+                // Bionic (Android) returns Unsupported; proceed unlocked.
+                Err(std::fs::TryLockError::Error(e))
+                    if e.kind() == std::io::ErrorKind::Unsupported =>
+                {
+                    history_file.seek(SeekFrom::End(0))?;
+                    history_file.write_all(line.as_bytes())?;
+                    history_file.flush()?;
+                    enforce_history_limit(&mut history_file, history_max_bytes)?;
+                    return Ok(());
+                }
                 Err(e) => return Err(e.into()),
             }
         }
@@ -357,6 +367,14 @@ fn lookup_history_entry(path: &Path, log_id: u64, offset: usize) -> Option<Histo
     // Retry a few times to avoid indefinite blocking.
     for _ in 0..MAX_RETRIES {
         let lock_result = file.try_lock_shared();
+
+        // Bionic (Android) returns Unsupported; treat as lock acquired.
+        let lock_result = match lock_result {
+            Err(std::fs::TryLockError::Error(e)) if e.kind() == std::io::ErrorKind::Unsupported => {
+                Ok(())
+            }
+            other => other,
+        };
 
         match lock_result {
             Ok(()) => {

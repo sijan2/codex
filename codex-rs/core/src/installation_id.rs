@@ -29,7 +29,12 @@ pub(crate) async fn resolve_installation_id(codex_home: &AbsolutePathBuf) -> Res
         }
 
         let mut file = options.open(&path)?;
-        file.lock()?;
+        match file.lock() {
+            Ok(()) => {}
+            // Bionic (Android) does not support OFD file locks; proceed unlocked.
+            Err(e) if e.kind() == std::io::ErrorKind::Unsupported => {}
+            Err(e) => return Err(e),
+        }
 
         #[cfg(unix)]
         {

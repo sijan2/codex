@@ -16,6 +16,7 @@ use tracing::warn;
 use crate::FunctionCallOutputContentItem;
 use crate::runtime::DEFAULT_EXEC_YIELD_TIME_MS;
 use crate::runtime::ExecuteRequest;
+use crate::runtime::IsolateTerminateHandle;
 use crate::runtime::RuntimeCommand;
 use crate::runtime::RuntimeEvent;
 use crate::runtime::RuntimeResponse;
@@ -244,7 +245,7 @@ struct PendingResult {
 struct SessionControlContext {
     cell_id: String,
     runtime_tx: std::sync::mpsc::Sender<RuntimeCommand>,
-    runtime_terminate_handle: v8::IsolateHandle,
+    runtime_terminate_handle: IsolateTerminateHandle,
 }
 
 fn missing_cell_response(cell_id: String) -> RuntimeResponse {

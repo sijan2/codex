@@ -1,22 +1,44 @@
+#[cfg(not(target_os = "android"))]
 mod callbacks;
+#[cfg(not(target_os = "android"))]
 mod globals;
+#[cfg(not(target_os = "android"))]
 mod module_loader;
+#[cfg(not(target_os = "android"))]
 mod timers;
+#[cfg(not(target_os = "android"))]
 mod value;
 
 use std::collections::HashMap;
+#[cfg(not(target_os = "android"))]
 use std::sync::OnceLock;
 use std::sync::mpsc as std_mpsc;
+#[cfg(not(target_os = "android"))]
 use std::thread;
 
 use codex_protocol::ToolName;
 use serde_json::Value as JsonValue;
 use tokio::sync::mpsc;
 
+#[cfg(not(target_os = "android"))]
 use crate::description::EnabledToolMetadata;
 use crate::description::ToolDefinition;
+#[cfg(not(target_os = "android"))]
 use crate::description::enabled_tool_metadata;
 use crate::response::FunctionCallOutputContentItem;
+
+#[cfg(not(target_os = "android"))]
+pub(crate) type IsolateTerminateHandle = v8::IsolateHandle;
+
+#[cfg(target_os = "android")]
+pub(crate) struct IsolateTerminateHandle;
+
+#[cfg(target_os = "android")]
+impl IsolateTerminateHandle {
+    pub(crate) fn terminate_execution(&self) -> bool {
+        false
+    }
+}
 
 pub const DEFAULT_EXEC_YIELD_TIME_MS: u64 = 10_000;
 pub const DEFAULT_WAIT_YIELD_TIME_MS: u64 = 10_000;
@@ -101,10 +123,19 @@ pub(crate) enum RuntimeEvent {
     },
 }
 
+#[cfg(target_os = "android")]
+pub(crate) fn spawn_runtime(
+    _request: ExecuteRequest,
+    _event_tx: mpsc::UnboundedSender<RuntimeEvent>,
+) -> Result<(std_mpsc::Sender<RuntimeCommand>, IsolateTerminateHandle), String> {
+    Err("code_mode requires V8 and is not available on android".to_string())
+}
+
+#[cfg(not(target_os = "android"))]
 pub(crate) fn spawn_runtime(
     request: ExecuteRequest,
     event_tx: mpsc::UnboundedSender<RuntimeEvent>,
-) -> Result<(std_mpsc::Sender<RuntimeCommand>, v8::IsolateHandle), String> {
+) -> Result<(std_mpsc::Sender<RuntimeCommand>, IsolateTerminateHandle), String> {
     initialize_v8()?;
 
     let (command_tx, command_rx) = std_mpsc::channel();
@@ -138,6 +169,7 @@ pub(crate) fn spawn_runtime(
     Ok((command_tx, isolate_handle))
 }
 
+#[cfg(not(target_os = "android"))]
 #[derive(Clone)]
 struct RuntimeConfig {
     tool_call_id: String,
@@ -146,6 +178,7 @@ struct RuntimeConfig {
     stored_values: HashMap<String, JsonValue>,
 }
 
+#[cfg(not(target_os = "android"))]
 pub(super) struct RuntimeState {
     event_tx: mpsc::UnboundedSender<RuntimeEvent>,
     pending_tool_calls: HashMap<String, v8::Global<v8::PromiseResolver>>,
@@ -159,6 +192,7 @@ pub(super) struct RuntimeState {
     exit_requested: bool,
 }
 
+#[cfg(not(target_os = "android"))]
 pub(super) enum CompletionState {
     Pending,
     Completed {
@@ -167,6 +201,7 @@ pub(super) enum CompletionState {
     },
 }
 
+#[cfg(not(target_os = "android"))]
 fn initialize_v8() -> Result<(), String> {
     static PLATFORM: OnceLock<Result<v8::SharedRef<v8::Platform>, String>> = OnceLock::new();
 
@@ -183,6 +218,7 @@ fn initialize_v8() -> Result<(), String> {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 fn run_runtime(
     config: RuntimeConfig,
     event_tx: mpsc::UnboundedSender<RuntimeEvent>,
@@ -293,6 +329,7 @@ fn run_runtime(
     }
 }
 
+#[cfg(not(target_os = "android"))]
 fn capture_scope_send_error(
     scope: &mut v8::PinScope<'_, '_>,
     event_tx: &mpsc::UnboundedSender<RuntimeEvent>,
@@ -306,6 +343,7 @@ fn capture_scope_send_error(
     send_result(event_tx, stored_values, error_text);
 }
 
+#[cfg(not(target_os = "android"))]
 fn send_result(
     event_tx: &mpsc::UnboundedSender<RuntimeEvent>,
     stored_values: HashMap<String, JsonValue>,
@@ -317,7 +355,7 @@ fn send_result(
     });
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "android")))]
 mod tests {
     use std::collections::HashMap;
     use std::time::Duration;
