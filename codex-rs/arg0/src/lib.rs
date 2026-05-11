@@ -1,5 +1,7 @@
 use std::fs::File;
+use std::fs::TryLockError;
 use std::future::Future;
+use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -326,7 +328,7 @@ pub fn prepend_path_entry_for_codex_aliases() -> std::io::Result<Arg0PathEntryGu
         .create(true)
         .truncate(false)
         .open(&lock_path)?;
-    lock_file.try_lock()?;
+    try_lock_file_best_effort(&lock_file)?;
 
     for filename in &[
         APPLY_PATCH_ARG0,
@@ -448,8 +450,26 @@ fn try_lock_dir(dir: &Path) -> std::io::Result<Option<File>> {
     match lock_file.try_lock() {
         Ok(()) => Ok(Some(lock_file)),
         Err(std::fs::TryLockError::WouldBlock) => Ok(None),
+        Err(TryLockError::Error(err)) if lock_unsupported(&err) => Ok(None),
         Err(err) => Err(err.into()),
     }
+}
+
+fn try_lock_file_best_effort(lock_file: &File) -> std::io::Result<()> {
+    match lock_file.try_lock() {
+        Ok(()) => Ok(()),
+        Err(TryLockError::WouldBlock) => Err(TryLockError::WouldBlock.into()),
+        Err(TryLockError::Error(err)) if lock_unsupported(&err) => Ok(()),
+        Err(err) => Err(err.into()),
+    }
+}
+
+fn lock_unsupported(err: &io::Error) -> bool {
+    // Android/Bionic can report `try_lock() not supported` for filesystems that
+    // still work fine for the per-process TempDir lifetime this helper relies
+    // on. Treat missing advisory locking as "no stale cleanup guarantee" rather
+    // than as a CLI startup failure.
+    err.kind() == io::ErrorKind::Unsupported
 }
 
 #[cfg(test)]
